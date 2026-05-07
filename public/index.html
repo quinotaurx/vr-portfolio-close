@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VR — Portfolio Close Price</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080b10;
+    --surface: #0d1117;
+    --surface2: #121820;
+    --surface3: #1a2232;
+    --border: #1e2d3d;
+    --border2: #253547;
+    --accent: #00d4ff;
+    --green: #00e676;
+    --red: #ff3d5a;
+    --yellow: #ffd600;
+    --white: #ffffff;
+    --text: #e8f0f8;
+    --text2: #b0c4d8;
+    --text3: #8faabe;
+    --font-display: 'Syne', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* HEADER */
+  header {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(8,11,16,0.97);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo { font-family: var(--font-display); font-weight: 800; font-size: 17px; }
+  .logo span { color: var(--accent); }
+
+  .header-right { display: flex; align-items: center; gap: 16px; }
+
+  .status-badge {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--text3);
+  }
+
+  .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  .clock { font-size: 11px; color: var(--text3); font-variant-numeric: tabular-nums; }
+
+  /* MAIN */
+  .container {
+    position: relative; z-index: 1;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+
+  /* SUMMARY CARDS */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  @media (max-width: 900px) { .summary-grid { grid-template-columns: repeat(2,1fr); } }
+  @media (max-width: 500px) { .summary-grid { grid-template-columns: 1fr; } }
+
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    transition: border-color 0.2s;
+  }
+
+  .summary-card:hover { border-color: var(--border2); }
+
+  .card-label {
+    font-size: 9px; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--text3);
+    margin-bottom: 8px;
+  }
+
+  .card-value {
+    font-family: var(--font-display);
+    font-size: 26px; font-weight: 700;
+    letter-spacing: -1px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .card-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  /* PORTFOLIO TABS */
+  .tabs {
+    display: flex; gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+
+  .tab {
+    padding: 10px 20px;
+    background: none; border: none;
+    color: var(--text3); font-family: var(--font-mono);
+    font-size: 12px; font-weight: 600;
+    letter-spacing: 1px; text-transform: uppercase;
+    cursor: pointer; border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* TABLE */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+
+  .table-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    justify-content: space-between;
+  }
+
+  .table-title {
+    font-family: var(--font-display);
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 2px; text-transform: uppercase;
+    color: var(--text3);
+  }
+
+  .refresh-btn {
+    padding: 5px 12px;
+    background: var(--surface3);
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    color: var(--text2); font-family: var(--font-mono);
+    font-size: 10px; cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .table-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  table { width: 100%; border-collapse: collapse; min-width: 700px; }
+
+  th {
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 10px; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--text3);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  th.right { text-align: right; }
+
+  td {
+    padding: 13px 16px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+    font-variant-numeric: tabular-nums;
+    vertical-align: middle;
+    color: var(--text2);
+    white-space: nowrap;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+
+  td.right { text-align: right; }
+
+  .sym { font-weight: 700; font-size: 14px; color: var(--white); letter-spacing: 0.3px; }
+
+  /* Sticky first two columns on mobile */
+  @media (max-width: 768px) {
+    table { min-width: 600px; }
+
+    th:nth-child(1), td:nth-child(1) {
+      position: sticky; left: 0; z-index: 2;
+      background: var(--surface2);
+      min-width: 40px;
+    }
+
+    th:nth-child(2), td:nth-child(2) {
+      position: sticky; left: 40px; z-index: 2;
+      background: var(--surface2);
+      min-width: 90px;
+      border-right: 1px solid var(--border2);
+      box-shadow: 2px 0 8px rgba(0,0,0,0.3);
+    }
+
+    tr:hover td:nth-child(1),
+    tr:hover td:nth-child(2) {
+      background: var(--surface3);
+    }
+
+    .total-row td:nth-child(1),
+    .total-row td:nth-child(2) {
+      background: var(--surface2) !important;
+    }
+
+    th { font-size: 9px; padding: 8px 12px; }
+    td { font-size: 12px; padding: 11px 12px; }
+    .sym { font-size: 13px; }
+  }
+
+  .up { color: var(--green) !important; }
+  .down { color: var(--red) !important; }
+  .neutral { color: var(--text3); }
+
+  .shimmer {
+    display: inline-block; width: 60px; height: 10px;
+    background: var(--border2); border-radius: 3px;
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes shimmer { 0%,100%{opacity:.4} 50%{opacity:1} }
+
+  /* Total row */
+  .total-row td {
+    background: var(--surface2) !important;
+    border-top: 2px solid var(--border2) !important;
+    font-weight: 600;
+  }
+
+
+
+  /* Loading */
+  .spinner {
+    width: 24px; height: 24px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Progress bar */
+  .progress-bar {
+    height: 2px; background: var(--border);
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%; background: var(--accent);
+    width: 0%; transition: width linear;
+    box-shadow: 0 0 4px var(--accent);
+  }
+
+  .last-update {
+    font-size: 9px; color: var(--text3);
+    padding: 6px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .live-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 4px var(--green);
+    animation: pulse 1.5s infinite;
+  }
+
+  /* Day change pulse */
+  @keyframes pulse-up {
+    0%, 100% { opacity: 1; text-shadow: 0 0 0px var(--green); }
+    50% { opacity: 0.7; text-shadow: 0 0 8px var(--green); }
+  }
+
+  @keyframes pulse-down {
+    0%, 100% { opacity: 1; text-shadow: 0 0 0px var(--red); }
+    50% { opacity: 0.7; text-shadow: 0 0 8px var(--red); }
+  }
+
+  .day-chg-up {
+    animation: pulse-up 2s ease-in-out infinite;
+    color: var(--green) !important;
+  }
+
+  .day-chg-down {
+    animation: pulse-down 2s ease-in-out infinite;
+    color: var(--red) !important;
+  }
+
+  /* Price tick flash */
+  @keyframes tick-up {
+    0%   { background: rgba(0,230,118,0.35); color: #00ff88; transform: scale(1.06); }
+    100% { background: transparent; color: inherit; transform: scale(1); }
+  }
+
+  @keyframes tick-down {
+    0%   { background: rgba(255,61,90,0.35); color: #ff6080; transform: scale(1.06); }
+    100% { background: transparent; color: inherit; transform: scale(1); }
+  }
+
+  .tick-up {
+    animation: tick-up 0.6s ease-out forwards;
+    border-radius: 4px;
+    padding: 1px 4px;
+    display: inline-block;
+  }
+
+  .tick-down {
+    animation: tick-down 0.6s ease-out forwards;
+    border-radius: 4px;
+    padding: 1px 4px;
+    display: inline-block;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- API key handled server-side -->
+
+<!-- HEADER -->
+<header>
+  <div class="logo">VR <span style="color:var(--text3);font-size:12px;font-weight:400;margin-left:8px;">Portfolio Dashboard</span></div>
+  <div class="header-right">
+    <div class="status-badge">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusTxt">—</span>
+    </div>
+    <div class="clock" id="clock"></div>
+  </div>
+</header>
+
+<!-- TICKER TAPE -->
+<div style="border-bottom:1px solid #1e2d3d;">
+  <div class="tradingview-widget-container">
+    <div class="tradingview-widget-container__widget"></div>
+    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+    {
+      "symbols": [
+        {"proName": "OANDA:XAUUSD", "title": "Gold"},
+        {"proName": "USOIL", "title": "WTI Oil"},
+        {"proName": "OANDA:XAGUSD", "title": "Silver"},
+        {"proName": "FX:EURUSD", "title": "EUR/USD"},
+        {"proName": "FX:USDJPY", "title": "USD/JPY"},
+        {"proName": "FX_IDC:USDRSD", "title": "USD/RSD"},
+        {"proName": "FX_IDC:EURRSD", "title": "EUR/RSD"},
+        {"proName": "FOREXCOM:SPXUSD", "title": "S&P 500"},
+        {"proName": "FOREXCOM:NSXUSD", "title": "Nasdaq"},
+        {"proName": "FOREXCOM:DJI", "title": "Dow Jones"},
+        {"proName": "BITSTAMP:BTCUSD", "title": "Bitcoin"}
+      ],
+      "showSymbolLogo": false,
+      "isTransparent": true,
+      "displayMode": "adaptive",
+      "colorTheme": "dark",
+      "locale": "en"
+    }
+    </script>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="container">
+
+  <!-- SUMMARY CARDS -->
+  <div class="summary-grid" id="summaryGrid">
+    <div class="summary-card">
+      <div class="card-label">Total Market Value</div>
+      <div class="card-value" id="totalValue">—</div>
+      <div class="card-sub">All portfolios combined</div>
+    </div>
+    <div class="summary-card">
+      <div class="card-label">Total Invested</div>
+      <div class="card-value" id="totalCost">—</div>
+      <div class="card-sub">Cost basis</div>
+    </div>
+    <div class="summary-card">
+      <div class="card-label">Total P&L</div>
+      <div class="card-value" id="totalPnl">—</div>
+      <div class="card-sub" id="totalPnlPct">—</div>
+    </div>
+    <div class="summary-card">
+      <div class="card-label">Positions</div>
+      <div class="card-value" id="totalPositions">—</div>
+      <div class="card-sub">Across all portfolios</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('all')">All</button>
+    <button class="tab" onclick="showTab('VRC')">VRC</button>
+    <button class="tab" onclick="showTab('VRI')">VRI</button>
+    <button class="tab" onclick="showTab('ORGN')">ORGN</button>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-wrap">
+    <div class="table-header">
+      <span class="table-title" id="tableTitle">All Portfolios</span>
+      <button class="refresh-btn" onclick="refreshPrices()">↻ Refresh</button>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="last-update">
+      <div class="live-dot"></div>
+      <span id="lastUpdate">Connecting...</span>
+    </div>
+    <div class="table-scroll-wrap">
+      <table id="portfolioTable">
+        <thead>
+          <tr>
+            <th>Portfolio</th>
+            <th>Symbol</th>
+            <th class="right">Qty</th>
+            <th class="right">Avg Cost</th>
+            <th class="right">Live Price</th>
+            <th class="right">Market Value</th>
+            <th class="right">Cost Basis</th>
+            <th class="right">P&L ($)</th>
+            <th class="right">P&L (%)</th>
+            <th class="right">Day Chg</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text3);">
+            <div class="spinner"></div><br><br>Loading prices...
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// PORTFOLIO DATA (from Excel)
+// ═══════════════════════════════════════
+const PORTFOLIOS = {
+    VRC: [
+    {symbol:'AAPL',  qty:637,  avgCost:256.32},
+    {symbol:'ADBE',  qty:1760,  avgCost:377.11},
+    {symbol:'AMZN',  qty:395,  avgCost:219.62},
+    {symbol:'AVGO',  qty:33,  avgCost:337.0},
+    {symbol:'CARG',  qty:2000,  avgCost:35.94},
+    {symbol:'CRM',  qty:1350,  avgCost:242.71},
+    {symbol:'MELI',  qty:195,  avgCost:2038.6},
+    {symbol:'META',  qty:670,  avgCost:630.01},
+    {symbol:'MONC',  qty:4340,  avgCost:52.13},
+    {symbol:'MSFT',  qty:1700,  avgCost:473.73},
+    {symbol:'NFLX',  qty:1837,  avgCost:90.37},
+    {symbol:'NVO',  qty:6400,  avgCost:53.89},
+    {symbol:'ORCL',  qty:1100,  avgCost:191.09},
+    {symbol:'PINS',  qty:10000,  avgCost:27.14},
+    {symbol:'PRX',  qty:6000,  avgCost:51.94},
+    {symbol:'SAP',   qty:480,  avgCost:167.60},
+    {symbol:'SE',  qty:5100,  avgCost:114.36},
+    {symbol:'UBER',  qty:6000,  avgCost:80.29},
+    {symbol:'V',  qty:1750,  avgCost:342.32},
+    {symbol:'OIH',  qty:190,  avgCost:389.0},
+    {symbol:'SOFI',  qty:4300,  avgCost:18.8},
+  ],
+    VRI: [
+    {symbol:'AAPL',  qty:1274,  avgCost:256.24},
+    {symbol:'ADBE',  qty:3220,  avgCost:361.99},
+    {symbol:'AMZN',  qty:680,  avgCost:219.76},
+    {symbol:'AVGO',  qty:70,  avgCost:337.0},
+    {symbol:'CARG',  qty:4000,  avgCost:35.86},
+    {symbol:'COPX',  qty:2500,  avgCost:84.14},
+    {symbol:'CRM',  qty:3700,  avgCost:234.17},
+    {symbol:'MELI',  qty:203,  avgCost:2039.75},
+    {symbol:'META',  qty:1870,  avgCost:631.83},
+    {symbol:'MONC',  qty:9100,  avgCost:52.26},
+    {symbol:'MSFT',  qty:5100,  avgCost:459.04},
+    {symbol:'NFLX',  qty:3675,  avgCost:88.97},
+    {symbol:'NKE',  qty:1575,  avgCost:58.94},
+    {symbol:'NVO',  qty:9900,  avgCost:54.06},
+    {symbol:'ORCL',  qty:2000,  avgCost:190.5},
+    {symbol:'PINS',  qty:28000,  avgCost:26.14},
+    {symbol:'PRX',  qty:12000,  avgCost:51.45},
+    {symbol:'SAP',   qty:1000,  avgCost:167.56},
+    {symbol:'SE',  qty:9060,  avgCost:111.45},
+    {symbol:'UBER',  qty:12500,  avgCost:80.94},
+    {symbol:'V',  qty:2900,  avgCost:342.46},
+    {symbol:'OIH',  qty:281,  avgCost:389.0},
+    {symbol:'SOFI',  qty:9250,  avgCost:18.8},
+  ],
+  ORGN: [
+    {symbol:'GLD',   qty:2666,  avgCost:430.74},
+    {symbol:'SLV',   qty:3535,  avgCost:74.40},
+    {symbol:'COPX',  qty:4530,  avgCost:80.18},
+    {symbol:'PPLT',  qty:280,   avgCost:186.19},
+  ]
+};
+
+// ═══════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════
+let priceCache = {};
+let activeTab = 'all';
+let refreshTimer = null;
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  startClock();
+  checkMarketStatus();
+  init();
+  startVersionCheck();
+});
+
+function init() {
+  renderTable();
+  updateSummary(); // Show cost basis and positions immediately
+  fetchAllPrices();
+  scheduleRefresh();
+}
+
+// ═══════════════════════════════════════
+// AUTO-RELOAD ON NEW DEPLOY
+// ═══════════════════════════════════════
+async function startVersionCheck() {
+  // Store current page ETag/Last-Modified as version fingerprint
+  let currentVersion = null;
+
+  async function checkVersion() {
+    try {
+      const res = await fetch(window.location.href, { method: 'HEAD', cache: 'no-store' });
+      const etag = res.headers.get('etag') || res.headers.get('last-modified');
+      if (!etag) return;
+
+      if (currentVersion === null) {
+        currentVersion = etag;
+      } else if (currentVersion !== etag) {
+        // New deploy detected — reload silently
+        window.location.reload();
+      }
+    } catch(e) {
+      // Network error — skip silently
+    }
+  }
+
+  // Check every 5 minutes
+  await checkVersion();
+  setInterval(checkVersion, 5 * 60 * 1000);
+}
+
+// ═══════════════════════════════════════
+// CLOCK + STATUS
+// ═══════════════════════════════════════
+function startClock() {
+  const tick = () => {
+    document.getElementById('clock').textContent =
+      new Date().toLocaleTimeString('en-US', { hour12:false, timeZone:'America/New_York' }) + ' ET';
+  };
+  tick();
+  setInterval(tick, 1000);
+}
+
+function checkMarketStatus() {
+  const et = new Date(new Date().toLocaleString('en-US', { timeZone:'America/New_York' }));
+  const day = et.getDay();
+  const mins = et.getHours() * 60 + et.getMinutes();
+  const isWeekday = day >= 1 && day <= 5;
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusTxt');
+
+  if (isWeekday && mins >= 570 && mins < 960) {
+    dot.style.background = '#00e676';
+    dot.style.boxShadow = '0 0 6px #00e676';
+    txt.textContent = 'PREV CLOSE';
+  } else if (isWeekday && mins >= 240 && mins < 1200) {
+    dot.style.background = '#ffd600';
+    dot.style.boxShadow = '0 0 6px #ffd600';
+    txt.textContent = 'EXT HOURS';
+  } else {
+    dot.style.background = '#ff3d5a';
+    dot.style.boxShadow = '0 0 6px #ff3d5a';
+    txt.textContent = 'CLOSED';
+  }
+}
+
+// ═══════════════════════════════════════
+// POLYGON API
+// ═══════════════════════════════════════
+async function polyFetch(path) {
+  // Try polygon.js first (generic proxy), fallback to prices.js
+  try {
+    const [cleanPath, queryStr] = path.split('?');
+    const params = new URLSearchParams(queryStr || '');
+    params.set('path', cleanPath);
+    const res = await fetch(`/api/polygon?${params.toString()}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  } catch(e) {
+    // Fallback: extract tickers and use prices.js
+    const tickersMatch = path.match(/tickers=([^&]+)/);
+    if (tickersMatch) {
+      const res = await fetch(`/api/prices?tickers=${tickersMatch[1]}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }
+    throw e;
+  }
+}
+
+// EU tickers + US tickers not on Polygon - fetch via /api/yahoo proxy
+const EU_TICKER_MAP = {
+  'MONC': 'MONC.MI',
+  'PRX':  'PRX.AS',
+  'SAP':  'SAP.DE',
+  'CARG': 'CARG',
+  'CBOE': 'CBOE',
+  'PINS': 'PINS',
+  'UBER': 'UBER',
+  'OIH':  'OIH',
+  'SOFI': 'SOFI',
+  'PPLT': 'PPLT',
+};
+
+async function fetchYahooPrice(sym) {
+  try {
+    const res = await fetch(`/api/yahoo?ticker=${sym}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const meta = data?.chart?.result?.[0]?.meta;
+    if (!meta) return null;
+    const price = meta.chartPreviousClose || meta.previousClose || meta.regularMarketPrice;
+    const prev  = meta.chartPreviousClose || meta.previousClose;
+    const dayChg = price && prev ? ((price - prev) / prev) * 100 : null;
+    return { price, dayChg, prevClose: prev };
+  } catch(e) { return null; }
+}
+
+async function fetchAllPrices() {
+  const allPositions = getAllPositions();
+  const allSymbols = [...new Set(allPositions.map(p => p.symbol))];
+
+  const euSymbols = allSymbols.filter(s => EU_TICKER_MAP[s]);
+  const usSymbols = allSymbols.filter(s => !EU_TICKER_MAP[s]);
+
+  // 1. ALL US tickers in one batch call (same approach as stocks dashboard)
+  try {
+    const data = await polyFetch(
+      `/v2/snapshot/locale/us/markets/stocks/tickers?tickers=${usSymbols.join(',')}&feed=sip`
+    );
+    if (data.tickers) {
+      data.tickers.forEach(t => {
+        const price = t.prevDay?.c || t.day?.c || t.min?.c || t.lastTrade?.p;
+        priceCache[t.ticker] = {
+          price,
+          dayChg: t.todaysChangePerc,
+          prevClose: t.prevDay?.c
+        };
+      });
+    }
+  } catch(e) {
+    console.warn('Polygon batch error:', e.message);
+  }
+
+  // 2. EU tickers via /api/yahoo proxy
+  await Promise.all(euSymbols.map(async sym => {
+    const result = await fetchYahooPrice(EU_TICKER_MAP[sym]);
+    if (result) priceCache[sym] = result;
+  }));
+
+  const now = new Date();
+  document.getElementById('lastUpdate').textContent =
+    `Updated ${now.toLocaleTimeString('en-US', {hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'})} ET`;
+
+  // First load: full render. Subsequent: in-place update only
+  const hasRows = document.querySelectorAll('tr[data-symbol]').length > 0;
+  if (hasRows) {
+    updatePricesInPlace();
+  } else {
+    renderTable();
+    updateSummary();
+  }
+  animateProgress();
+}
+function scheduleRefresh() {
+  // Refresh once daily at 09:00 ET (after market open, prev day close is final)
+  const et = new Date(new Date().toLocaleString('en-US', {timeZone:'America/New_York'}));
+  const now = et.getHours() * 60 + et.getMinutes();
+  const target = 9 * 60; // 09:00 ET
+  let msUntilNext;
+  if (now < target) {
+    msUntilNext = (target - now) * 60 * 1000;
+  } else {
+    // Next day 09:00
+    msUntilNext = (24 * 60 - now + target) * 60 * 1000;
+  }
+
+  if (refreshTimer) clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(() => {
+    fetchAllPrices();
+    scheduleRefresh();
+  }, msUntilNext);
+}
+
+// ═══════════════════════════════════════
+// IN-PLACE PRICE UPDATE (no full re-render)
+// ═══════════════════════════════════════
+function updatePricesInPlace() {
+  const rows = document.querySelectorAll('tr[data-symbol]');
+  let totalUsdMkt = 0, totalUsdCost = 0;
+  let totalEurMkt = 0, totalEurCost = 0;
+
+  rows.forEach(row => {
+    const sym = row.dataset.symbol;
+    const cache = priceCache[sym] || {};
+    const price = cache.price;
+    const dayChgPct = cache.dayChg;
+
+    // Find position data
+    const portfolio = row.dataset.portfolio;
+    const positions = PORTFOLIOS[portfolio] || [];
+    const pos = positions.find(p => p.symbol === sym);
+    if (!pos) return;
+
+    const eur = isEur(sym);
+    const cs = currSym(sym);
+    const costBasis = pos.qty * pos.avgCost;
+    const mktVal = price ? pos.qty * price : null;
+    const pnl = mktVal !== null ? mktVal - costBasis : null;
+    const pnlPct = pnl !== null ? (pnl / costBasis) * 100 : null;
+
+    if (mktVal !== null) {
+      if (eur) { totalEurMkt += mktVal; totalEurCost += costBasis; }
+      else      { totalUsdMkt += mktVal; totalUsdCost += costBasis; }
+    }
+
+    // Update price cell with tick animation
+    const priceCell = row.querySelector('.price-cell');
+    if (priceCell && price) {
+      const oldPrice = parseFloat(priceCell.dataset.price || 0);
+      const newText = `${cs}${fmtPx(price)}`;
+      if (oldPrice && price !== oldPrice) {
+        const direction = price > oldPrice ? 'tick-up' : 'tick-down';
+        priceCell.dataset.price = price;
+        priceCell.innerHTML = `<span class="${direction}">${newText}</span>`;
+        setTimeout(() => { priceCell.textContent = newText; }, 700);
+      } else if (!oldPrice) {
+        priceCell.dataset.price = price;
+        priceCell.textContent = newText;
+      }
+    }
+
+    // Update market value
+    const mktValCell = row.querySelector('.mktval-cell');
+    if (mktValCell && mktVal !== null) {
+      mktValCell.textContent = `${cs}${fmtLarge(mktVal)}`;
+    }
+
+    // Update P&L
+    const pnlCell = row.querySelector('.pnl-cell');
+    if (pnlCell && pnl !== null) {
+      const pnlClass = pnl >= 0 ? 'up' : 'down';
+      pnlCell.innerHTML = `<span class="${pnlClass}">${pnl >= 0 ? '+' : ''}${cs}${fmtLarge(Math.abs(pnl))}</span>`;
+    }
+
+    const pnlPctCell = row.querySelector('.pnlpct-cell');
+    if (pnlPctCell && pnlPct !== null) {
+      const pnlClass = pnlPct >= 0 ? 'up' : 'down';
+      pnlPctCell.innerHTML = `<span class="${pnlClass}">${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%</span>`;
+    }
+
+    // Update day change
+    const dayCell = row.querySelector('.daychg-cell');
+    if (dayCell && dayChgPct !== null && dayChgPct !== undefined) {
+      const dayPulse = dayChgPct >= 0 ? 'day-chg-up' : 'day-chg-down';
+      dayCell.innerHTML = `<span class="${dayPulse}">${dayChgPct >= 0 ? '+' : ''}${dayChgPct.toFixed(2)}%</span>`;
+    }
+  });
+
+  // Update total rows in-place
+  const usdPnl = totalUsdMkt - totalUsdCost;
+  const usdPnlPct = totalUsdCost > 0 ? (usdPnl / totalUsdCost) * 100 : 0;
+  const eurPnl = totalEurMkt - totalEurCost;
+  const eurPnlPct = totalEurCost > 0 ? (eurPnl / totalEurCost) * 100 : 0;
+  const usdCls = usdPnl >= 0 ? 'var(--green)' : 'var(--red)';
+  const eurCls = eurPnl >= 0 ? 'var(--green)' : 'var(--red)';
+  const uc = usdPnl >= 0 ? 'up' : 'down';
+  const ec = eurPnl >= 0 ? 'up' : 'down';
+
+  const usdTotalMkt = document.getElementById('usd-total-mkt');
+  if (usdTotalMkt && totalUsdMkt > 0) {
+    usdTotalMkt.textContent = `$${fmtLarge(totalUsdMkt)}`;
+    const usdCostEl = document.getElementById('usd-total-cost');
+    if (usdCostEl) usdCostEl.textContent = `$${fmtLarge(totalUsdCost)}`;
+    document.getElementById('usd-total-pnl').innerHTML = `<span class="${uc}" style="font-weight:700;font-size:13px">${usdPnl>=0?'+':''}$${fmtLarge(Math.abs(usdPnl))}</span>`;
+    document.getElementById('usd-total-pct').innerHTML = `<span class="${uc}" style="font-weight:700;font-size:13px">${usdPnlPct>=0?'+':''}${usdPnlPct.toFixed(2)}%</span>`;
+  }
+
+  const eurTotalMkt = document.getElementById('eur-total-mkt');
+  if (eurTotalMkt && totalEurMkt > 0) {
+    eurTotalMkt.textContent = `€${fmtLarge(totalEurMkt)}`;
+    const eurCostEl = document.getElementById('eur-total-cost');
+    if (eurCostEl) eurCostEl.textContent = `€${fmtLarge(totalEurCost)}`;
+    document.getElementById('eur-total-pnl').innerHTML = `<span class="${ec}" style="font-weight:700;font-size:13px">${eurPnl>=0?'+':''}€${fmtLarge(Math.abs(eurPnl))}</span>`;
+    document.getElementById('eur-total-pct').innerHTML = `<span class="${ec}" style="font-weight:700;font-size:13px">${eurPnlPct>=0?'+':''}${eurPnlPct.toFixed(2)}%</span>`;
+  }
+
+  // Update summary cards
+  const tvEl = document.getElementById('totalValue');
+  if (tvEl && totalUsdMkt > 0) {
+    tvEl.innerHTML = `<span style="font-size:22px">$${fmtLarge(totalUsdMkt)}</span><span style="font-size:14px;color:var(--yellow);margin-left:8px">€${fmtLarge(totalEurMkt)}</span>`;
+  }
+  const pnlEl = document.getElementById('totalPnl');
+  if (pnlEl && totalUsdMkt > 0) {
+    pnlEl.innerHTML = `<span style="color:${usdCls};font-size:22px">${usdPnl>=0?'+':''}$${fmtLarge(Math.abs(usdPnl))}</span><span style="color:${eurCls};font-size:14px;margin-left:8px">${eurPnl>=0?'+':''}€${fmtLarge(Math.abs(eurPnl))}</span>`;
+    document.getElementById('totalPnlPct').innerHTML = `<span style="color:${usdCls}">USD ${usdPnlPct>=0?'+':''}${usdPnlPct.toFixed(2)}%</span> &nbsp;·&nbsp; <span style="color:${eurCls}">EUR ${eurPnlPct>=0?'+':''}${eurPnlPct.toFixed(2)}%</span>`;
+  }
+}
+
+function animateProgress() {
+  const bar = document.getElementById('progressFill');
+  const et = new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
+  const isActive = et.getDay()>=1 && et.getDay()<=5;
+  const interval = isActive ? 30000 : 120000;
+  bar.style.transition = 'none';
+  bar.style.width = '0%';
+  setTimeout(() => {
+    bar.style.transition = `width ${interval}ms linear`;
+    bar.style.width = '100%';
+  }, 50);
+}
+
+function refreshPrices() {
+  fetchAllPrices();
+  if (refreshTimer) clearTimeout(refreshTimer);
+  scheduleRefresh();
+}
+
+// ═══════════════════════════════════════
+// DATA HELPERS
+// ═══════════════════════════════════════
+function getAllPositions() {
+  const all = [];
+  Object.entries(PORTFOLIOS).forEach(([portfolio, positions]) => {
+    positions.forEach(p => all.push({...p, portfolio}));
+  });
+  return all;
+}
+
+function getFilteredPositions() {
+  if (activeTab === 'all') return getAllPositions();
+  return PORTFOLIOS[activeTab].map(p => ({...p, portfolio: activeTab}));
+}
+
+// EUR tickers
+const EUR_TICKERS = new Set(['MONC', 'PRX', 'SAP']);
+
+function isEur(sym) { return EUR_TICKERS.has(sym); }
+function currSym(sym) { return isEur(sym) ? '€' : '$'; }
+
+// ═══════════════════════════════════════
+// RENDER TABLE
+// ═══════════════════════════════════════
+function renderTable() {
+  const positions = getFilteredPositions();
+  const tbody = document.getElementById('tableBody');
+
+  if (!positions.length) {
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)">No positions</td></tr>';
+    return;
+  }
+
+  let totalUsdMkt = 0, totalUsdCost = 0;
+  let totalEurMkt = 0, totalEurCost = 0;
+  let rows = '';
+
+  positions.forEach(p => {
+    const cache = priceCache[p.symbol] || {};
+    const price = cache.price;
+    const dayChgPct = cache.dayChg;
+    const eur = isEur(p.symbol);
+    const cs = currSym(p.symbol);
+
+    const costBasis = p.qty * p.avgCost;
+    const mktVal = price ? p.qty * price : null;
+    const pnl = mktVal !== null ? mktVal - costBasis : null;
+    const pnlPct = pnl !== null ? (pnl / costBasis) * 100 : null;
+
+    if (mktVal !== null) {
+      if (eur) { totalEurMkt += mktVal; totalEurCost += costBasis; }
+      else      { totalUsdMkt += mktVal; totalUsdCost += costBasis; }
+    }
+
+    const currBadge = eur
+      ? `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(255,214,0,0.12);color:var(--yellow);margin-left:4px">EUR</span>`
+      : '';
+
+    const priceCell  = price   ? `${cs}${fmtPx(price)}`               : '<span class="shimmer"></span>';
+    const mktValCell = mktVal  !== null ? `${cs}${fmtLarge(mktVal)}`  : '<span class="shimmer"></span>';
+    const pnlClass   = pnl === null ? '' : pnl >= 0 ? 'up' : 'down';
+    const pnlCell    = pnl    !== null
+      ? `<span class="${pnlClass}">${pnl >= 0 ? '+' : ''}${cs}${fmtLarge(Math.abs(pnl))}</span>`
+      : '<span class="shimmer"></span>';
+    const pnlPctCell = pnlPct !== null
+      ? `<span class="${pnlClass}">${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%</span>`
+      : '<span class="shimmer"></span>';
+    const dayClass   = !dayChgPct ? '' : dayChgPct >= 0 ? 'up' : 'down';
+    const dayPulse   = !dayChgPct ? '' : dayChgPct >= 0 ? 'day-chg-up' : 'day-chg-down';
+    const dayCell    = dayChgPct !== undefined && dayChgPct !== null
+      ? `<span class="${dayPulse}">${dayChgPct >= 0 ? '+' : ''}${dayChgPct.toFixed(2)}%</span>`
+      : '<span class="shimmer"></span>';
+
+    const portfolioBadge = activeTab === 'all'
+      ? `<span style="font-size:9px;padding:2px 7px;border-radius:3px;background:var(--surface3);color:var(--text3)">${p.portfolio}</span>`
+      : '';
+
+    rows += `
+      <tr data-symbol="${p.symbol}" data-portfolio="${p.portfolio}">
+        <td>${portfolioBadge}</td>
+        <td class="sym">${p.symbol}${currBadge}</td>
+        <td class="right" style="font-size:13px">${p.qty.toLocaleString()}</td>
+        <td class="right" style="font-size:13px">${cs}${fmtPx(p.avgCost)}</td>
+        <td class="right price-cell" style="font-size:14px;font-weight:600;color:var(--white)">${priceCell}</td>
+        <td class="right mktval-cell" style="font-size:13px;font-weight:600">${mktValCell}</td>
+        <td class="right" style="font-size:12px;color:var(--text3)">${cs}${fmtLarge(costBasis)}</td>
+        <td class="right pnl-cell" style="font-size:13px;font-weight:600">${pnlCell}</td>
+        <td class="right pnlpct-cell" style="font-size:13px;font-weight:600">${pnlPctCell}</td>
+        <td class="right daychg-cell" style="font-size:13px">${dayCell}</td>
+      </tr>`;
+  });
+
+  // Total rows
+  const usdPnl = totalUsdMkt - totalUsdCost;
+  const usdPnlPct = totalUsdCost > 0 ? (usdPnl / totalUsdCost) * 100 : 0;
+  const eurPnl = totalEurMkt - totalEurCost;
+  const eurPnlPct = totalEurCost > 0 ? (eurPnl / totalEurCost) * 100 : 0;
+  const usdClass = usdPnl >= 0 ? 'up' : 'down';
+  const eurClass = eurPnl >= 0 ? 'up' : 'down';
+
+  rows += `
+    <tr class="total-row" id="usd-total-row">
+      <td colspan="2" style="font-weight:800;color:var(--white);font-size:13px;letter-spacing:1px">USD TOT</td>
+      <td></td><td></td><td></td>
+      <td class="right" id="usd-total-mkt" style="color:var(--white);font-weight:700;font-size:14px">$${fmtLarge(totalUsdMkt)}</td>
+      <td class="right" id="usd-total-cost" style="color:var(--text3);font-size:12px">$${fmtLarge(totalUsdCost)}</td>
+      <td class="right" id="usd-total-pnl"><span class="${usdClass}" style="font-weight:700;font-size:13px">${usdPnl>=0?'+':''}$${fmtLarge(Math.abs(usdPnl))}</span></td>
+      <td class="right" id="usd-total-pct"><span class="${usdClass}" style="font-weight:700;font-size:13px">${usdPnlPct>=0?'+':''}${usdPnlPct.toFixed(2)}%</span></td>
+      <td></td>
+    </tr>
+    <tr class="total-row" id="eur-total-row">
+      <td colspan="2" style="font-weight:800;color:var(--yellow);font-size:13px;letter-spacing:1px">EUR TOT</td>
+      <td></td><td></td><td></td>
+      <td class="right" id="eur-total-mkt" style="color:var(--yellow);font-weight:700;font-size:14px">€${fmtLarge(totalEurMkt)}</td>
+      <td class="right" id="eur-total-cost" style="color:var(--text3);font-size:12px">€${fmtLarge(totalEurCost)}</td>
+      <td class="right" id="eur-total-pnl"><span class="${eurClass}" style="font-weight:700;font-size:13px">${eurPnl>=0?'+':''}€${fmtLarge(Math.abs(eurPnl))}</span></td>
+      <td class="right" id="eur-total-pct"><span class="${eurClass}" style="font-weight:700;font-size:13px">${eurPnlPct>=0?'+':''}${eurPnlPct.toFixed(2)}%</span></td>
+      <td></td>
+    </tr>`;
+
+  tbody.innerHTML = rows;
+}
+
+function updateSummary() {
+  const all = getAllPositions();
+  let usdMkt = 0, usdCost = 0;
+  let eurMkt = 0, eurCost = 0;
+
+  all.forEach(p => {
+    const price = priceCache[p.symbol]?.price;
+    const cost = p.qty * p.avgCost;
+    if (isEur(p.symbol)) {
+      eurCost += cost;
+      if (price) eurMkt += p.qty * price;
+    } else {
+      usdCost += cost;
+      if (price) usdMkt += p.qty * price;
+    }
+  });
+
+  const usdPnl = usdMkt - usdCost;
+  const usdPnlPct = usdCost > 0 ? (usdPnl / usdCost) * 100 : 0;
+  const eurPnl = eurMkt - eurCost;
+  const eurPnlPct = eurCost > 0 ? (eurPnl / eurCost) * 100 : 0;
+  const usdCls = usdPnl >= 0 ? 'var(--green)' : 'var(--red)';
+  const eurCls = eurPnl >= 0 ? 'var(--green)' : 'var(--red)';
+
+  document.getElementById('totalValue').innerHTML =
+    `<span style="font-size:22px">$${fmtLarge(usdMkt)}</span>
+     <span style="font-size:14px;color:var(--yellow);margin-left:8px">€${fmtLarge(eurMkt)}</span>`;
+
+  document.getElementById('totalCost').innerHTML =
+    `<span style="font-size:22px">$${fmtLarge(usdCost)}</span>
+     <span style="font-size:14px;color:var(--yellow);margin-left:8px">€${fmtLarge(eurCost)}</span>`;
+
+  document.getElementById('totalPnl').innerHTML =
+    `<span style="color:${usdCls};font-size:22px">${usdPnl>=0?'+':''}$${fmtLarge(Math.abs(usdPnl))}</span>
+     <span style="color:${eurCls};font-size:14px;margin-left:8px">${eurPnl>=0?'+':''}€${fmtLarge(Math.abs(eurPnl))}</span>`;
+
+  document.getElementById('totalPnlPct').innerHTML =
+    `<span style="color:${usdCls}">USD ${usdPnlPct>=0?'+':''}${usdPnlPct.toFixed(2)}%</span>
+     &nbsp;·&nbsp;
+     <span style="color:${eurCls}">EUR ${eurPnlPct>=0?'+':''}${eurPnlPct.toFixed(2)}%</span>`;
+
+  document.getElementById('totalPositions').textContent = all.length;
+}
+
+// ═══════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════
+function showTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  const titles = {all:'All Portfolios', VRC:'Portfolio VRC', VRI:'Portfolio VRI', ORGN:'Portfolio ORGN'};
+  document.getElementById('tableTitle').textContent = titles[tab];
+  renderTable();
+}
+
+// ═══════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════
+function fmtPx(n) {
+  if (!n && n !== 0) return '—';
+  return parseFloat(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function fmtLarge(n) {
+  if (!n && n !== 0) return '—';
+  if (Math.abs(n) >= 1e6) return (n/1e6).toFixed(2) + 'M';
+  if (Math.abs(n) >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return n.toFixed(2);
+}
+</script>
+</body>
+</html>
