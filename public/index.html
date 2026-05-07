@@ -627,22 +627,14 @@ function checkMarketStatus() {
 // POLYGON API
 // ═══════════════════════════════════════
 async function polyFetch(path) {
-  // Try polygon.js first (generic proxy), fallback to prices.js
   try {
     const [cleanPath, queryStr] = path.split('?');
     const params = new URLSearchParams(queryStr || '');
     params.set('path', cleanPath);
-    const res = await fetch(`/api/polygon?${params.toString()}`);
+    const res = await fetch(`/api/polygon-close?${params.toString()}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
   } catch(e) {
-    // Fallback: extract tickers and use prices.js
-    const tickersMatch = path.match(/tickers=([^&]+)/);
-    if (tickersMatch) {
-      const res = await fetch(`/api/prices?tickers=${tickersMatch[1]}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
-    }
     throw e;
   }
 }
@@ -682,36 +674,34 @@ async function fetchAllPrices() {
   const euSymbols = allSymbols.filter(s => EU_TICKER_MAP[s]);
   const usSymbols = allSymbols.filter(s => !EU_TICKER_MAP[s]);
 
-  // 1. ALL US tickers in one batch call (same approach as stocks dashboard)
+  // 1. US tickers — prev day close via polygon-close API
   try {
-    const data = await polyFetch(
-      `/v2/snapshot/locale/us/markets/stocks/tickers?tickers=${usSymbols.join(',')}&feed=sip`
-    );
-    if (data.tickers) {
-      data.tickers.forEach(t => {
-        const price = t.prevDay?.c || t.day?.c || t.min?.c || t.lastTrade?.p;
-        priceCache[t.ticker] = {
-          price,
-          dayChg: t.todaysChangePerc,
-          prevClose: t.prevDay?.c
-        };
+    const res = await fetch(`/api/polygon-close?tickers=${usSymbols.join(',')}`);
+    if (res.ok) {
+      const data = await res.json();
+      Object.entries(data).forEach(([sym, val]) => {
+        priceCache[sym] = val;
       });
     }
   } catch(e) {
-    console.warn('Polygon batch error:', e.message);
+    console.warn('Polygon close error:', e.message);
   }
 
-  // 2. EU tickers via /api/yahoo proxy
+  // 2. EU tickers via yahoo-close proxy
   await Promise.all(euSymbols.map(async sym => {
-    const result = await fetchYahooPrice(EU_TICKER_MAP[sym]);
-    if (result) priceCache[sym] = result;
+    try {
+      const res = await fetch(`/api/yahoo-close?ticker=${EU_TICKER_MAP[sym]}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.price) priceCache[sym] = data;
+      }
+    } catch(e) {}
   }));
 
   const now = new Date();
   document.getElementById('lastUpdate').textContent =
     `Updated ${now.toLocaleTimeString('en-US', {hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'})} ET`;
 
-  // First load: full render. Subsequent: in-place update only
   const hasRows = document.querySelectorAll('tr[data-symbol]').length > 0;
   if (hasRows) {
     updatePricesInPlace();
