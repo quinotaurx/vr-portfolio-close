@@ -1,23 +1,55 @@
+// api/polygon-close.js
+// Returns PREVIOUS DAY CLOSING PRICE for US tickers
+// Uses Polygon /v2/aggs/ticker/{sym}/prev endpoint
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  res.setHeader('Access-Control-Allow-Methods', 'GET');
 
-  const API_KEY = process.env.POLYGON_API_KEY;
-  if (!API_KEY) return res.status(500).json({ error: 'POLYGON_API_KEY not configured' });
+  const apiKey = process.env.POLYGON_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: 'Missing POLYGON_API_KEY' });
 
-  const { path, ...queryParams } = req.query;
-  if (!path) return res.status(400).json({ error: 'Missing path parameter' });
+  const { tickers } = req.query;
+  if (!tickers) return res.status(400).json({ error: 'Missing tickers param' });
 
-  const qs = new URLSearchParams({ ...queryParams, apiKey: API_KEY }).toString();
-  const url = `https://api.polygon.io${path}?${qs}`;
+  const symbolList = tickers.split(',').map(s => s.trim()).filter(Boolean);
 
-  try {
-    const upstream = await fetch(url);
-    const data = await upstream.json();
-    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=15');
-    return res.status(upstream.status).json(data);
-  } catch (err) {
-    return res.status(502).json({ error: 'Upstream fetch failed' });
-  }
+  // Fetch prev day close for each ticker in parallel
+  const results = await Promise.all(
+    symbolList.map(async (sym) => {
+      try {
+        const url = `https://api.polygon.io/v2/aggs/ticker/${sym}/prev?adjusted=true&apiKey=${apiKey}`;
+        const r = await fetch(url);
+        if (!r.ok) return { ticker: sym, error: r.status };
+        const data = await r.json();
+        const result = data?.results?.[0];
+        if (!result) return { ticker: sym, error: 'no data' };
+        return {
+          ticker: sym,
+          prevClose: result.c,
+          open:      result.o,
+          high:      result.h,
+          low:       result.l,
+          volume:    result.v,
+          date:      result.t
+        };
+      } catch(e) {
+        return { ticker: sym, error: e.message };
+      }
+    })
+  );
+
+  // Format as priceCache-compatible object
+  const output = {};
+  results.forEach(r => {
+    if (r.prevClose) {
+      output[r.ticker] = {
+        price:    r.prevClose,
+        dayChg:   0, // prev close has no day change
+        prevClose: r.prevClose
+      };
+    }
+  });
+
+  return res.status(200).json(output);
 }
