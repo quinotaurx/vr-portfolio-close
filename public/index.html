@@ -644,25 +644,22 @@ const EU_TICKER_MAP = {
   'MONC': 'MONC.MI',
   'PRX':  'PRX.AS',
   'SAP':  'SAP.DE',
-  'CARG': 'CARG',
-  'CBOE': 'CBOE',
-  'PINS': 'PINS',
-  'UBER': 'UBER',
-  'OIH':  'OIH',
-  'SOFI': 'SOFI',
-  'PPLT': 'PPLT',
 };
+
+// US tickers that need polygon-close (prev day aggs endpoint)
+const POLYGON_CLOSE_EXTRA = ['CARG','PINS','UBER','OIH','SOFI','PPLT'];
 
 async function fetchYahooPrice(sym) {
   try {
-    const res = await fetch(`/api/yahoo?ticker=${sym}`);
+    const res = await fetch(`/api/yahoo?ticker=${EU_TICKER_MAP[sym] || sym}`);
     if (!res.ok) return null;
     const data = await res.json();
     const meta = data?.chart?.result?.[0]?.meta;
     if (!meta) return null;
-    const price = meta.chartPreviousClose || meta.previousClose || meta.regularMarketPrice;
+    // Use ONLY previous close — not live price
+    const price = meta.chartPreviousClose || meta.previousClose;
     const prev  = meta.chartPreviousClose || meta.previousClose;
-    const dayChg = price && prev ? ((price - prev) / prev) * 100 : null;
+    const dayChg = 0;
     return { price, dayChg, prevClose: prev };
   } catch(e) { return null; }
 }
@@ -672,11 +669,14 @@ async function fetchAllPrices() {
   const allSymbols = [...new Set(allPositions.map(p => p.symbol))];
 
   const euSymbols = allSymbols.filter(s => EU_TICKER_MAP[s]);
-  const usSymbols = allSymbols.filter(s => !EU_TICKER_MAP[s]);
+  const usSymbols = [...new Set([
+    ...allSymbols.filter(s => !EU_TICKER_MAP[s]),
+    ...POLYGON_CLOSE_EXTRA
+  ])];
 
   // 1. US tickers — prev day close via polygon-close API
   try {
-    const res = await fetch(`/api/polygon-close?tickers=${usSymbols.join(',')}`);
+    const res = await fetch(`/api/polygon?tickers=${usSymbols.join(',')}`);
     if (res.ok) {
       const data = await res.json();
       Object.entries(data).forEach(([sym, val]) => {
@@ -687,14 +687,11 @@ async function fetchAllPrices() {
     console.warn('Polygon close error:', e.message);
   }
 
-  // 2. EU tickers via yahoo-close proxy
+  // 2. EU tickers via yahoo proxy
   await Promise.all(euSymbols.map(async sym => {
     try {
-      const res = await fetch(`/api/yahoo-close?ticker=${EU_TICKER_MAP[sym]}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.price) priceCache[sym] = data;
-      }
+      const result = await fetchYahooPrice(sym);
+      if (result) priceCache[sym] = result;
     } catch(e) {}
   }));
 
