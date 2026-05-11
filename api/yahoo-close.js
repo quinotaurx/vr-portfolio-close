@@ -1,6 +1,6 @@
 // api/yahoo-close.js
-// Returns PREVIOUS DAY CLOSING PRICE for EU tickers via Yahoo Finance
-// Used for MONC.MI, PRX.AS, SAP.DE and US tickers not on Polygon
+// Returns PREVIOUS DAY CLOSING PRICE for tickers via Yahoo Finance
+// Used for EU tickers (MONC.MI, PRX.AS, SAP.DE) and US tickers not on Polygon
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5d`;
     const r = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': 'application/json'
       }
     });
@@ -22,17 +22,24 @@ export default async function handler(req, res) {
 
     const data = await r.json();
     const meta = data?.chart?.result?.[0]?.meta;
-
     if (!meta) return res.status(404).json({ error: 'No data from Yahoo' });
 
-    // Use chartPreviousClose or previousClose — NOT regularMarketPrice (live)
+    // Previous close — NOT live price
     const prevClose = meta.chartPreviousClose || meta.previousClose;
+    const regularPrice = meta.regularMarketPrice;
 
     return res.status(200).json({
-      ticker,
-      price:    prevClose,
-      dayChg:   0,
-      prevClose: prevClose
+      chart: {
+        result: [{
+          meta: {
+            regularMarketPrice: prevClose,        // return prevClose as price
+            previousClose:      prevClose,
+            chartPreviousClose: prevClose,
+            regularMarketChangePercent: 0,        // no day change for close
+            currency: meta.currency || 'USD'
+          }
+        }]
+      }
     });
 
   } catch(e) {
