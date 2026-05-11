@@ -1,6 +1,7 @@
 // api/polygon-close.js
-// Returns PREVIOUS DAY CLOSING PRICE for US tickers
+// Returns PREVIOUS DAY CLOSING PRICE for ALL US tickers
 // Uses Polygon /v2/aggs/ticker/{sym}/prev endpoint
+// Works for ALL tickers including OIH, SOFI, CARG, PINS, UBER, PPLT
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -25,13 +26,8 @@ export default async function handler(req, res) {
         const result = data?.results?.[0];
         if (!result) return { ticker: sym, error: 'no data' };
         return {
-          ticker: sym,
+          ticker:    sym,
           prevClose: result.c,
-          open:      result.o,
-          high:      result.h,
-          low:       result.l,
-          volume:    result.v,
-          date:      result.t
         };
       } catch(e) {
         return { ticker: sym, error: e.message };
@@ -39,13 +35,12 @@ export default async function handler(req, res) {
     })
   );
 
-  // Format as priceCache-compatible object
   const output = {};
   results.forEach(r => {
     if (r.prevClose) {
       output[r.ticker] = {
-        price:    r.prevClose,
-        dayChg:   0, // prev close has no day change
+        price:     r.prevClose,
+        dayChg:    0,
         prevClose: r.prevClose
       };
     }
