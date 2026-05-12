@@ -1,6 +1,6 @@
 // api/yahoo-close.js
-// Returns PREVIOUS DAY CLOSING PRICE for tickers via Yahoo Finance
-// Used for EU tickers (MONC.MI, PRX.AS, SAP.DE) and US tickers not on Polygon
+// Returns closing price for EU tickers and US fallback tickers via Yahoo Finance
+// regularMarketPrice = most recent close (when market is closed = today's close)
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5d`;
     const r = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
         'Accept': 'application/json'
       }
     });
@@ -24,19 +24,18 @@ export default async function handler(req, res) {
     const meta = data?.chart?.result?.[0]?.meta;
     if (!meta) return res.status(404).json({ error: 'No data from Yahoo' });
 
-    // Previous close — NOT live price
-    const prevClose = meta.chartPreviousClose || meta.previousClose;
-    const regularPrice = meta.regularMarketPrice;
+    // regularMarketPrice = today's closing price when market is closed
+    const price = meta.regularMarketPrice || meta.chartPreviousClose || meta.previousClose;
 
     return res.status(200).json({
       chart: {
         result: [{
           meta: {
-            regularMarketPrice: prevClose,        // return prevClose as price
-            previousClose:      prevClose,
-            chartPreviousClose: prevClose,
-            regularMarketChangePercent: 0,        // no day change for close
-            currency: meta.currency || 'USD'
+            regularMarketPrice:         price,
+            previousClose:              meta.chartPreviousClose,
+            chartPreviousClose:         meta.chartPreviousClose,
+            regularMarketChangePercent: 0,
+            currency:                   meta.currency || 'USD'
           }
         }]
       }
